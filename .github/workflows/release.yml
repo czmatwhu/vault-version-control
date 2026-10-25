@@ -1,0 +1,59 @@
+name: Publish Obsidian plugin release
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify tagged runtime files
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          root=pathlib.Path('.')
+          tag=os.environ['RELEASE_TAG']
+          manifest=json.loads((root/'manifest.json').read_text())
+          assert tag==manifest['version'], (tag,manifest['version'])
+          assert manifest['id']=='vault-version-control'
+          for item in ['main.js','manifest.json','styles.css']:
+              assert (root/item).is_file() and (root/item).stat().st_size>0
+          if tag=='0.1.41':
+              expected={
+                'main.js':'ae32a3549ea585feff660f250fa8045bd246bea10663d0050113fc4f2d7017fb',
+                'manifest.json':'4071e1b22d074b7f08df639fe175f2fe1b71d97d9a69b0e39ad962c76043ee59',
+                'styles.css':'005dfb03680c14249a6460afbde347f0eefa1e83940c4c7956b877bd59201699',
+              }
+              for name, digest in expected.items():
+                  assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest, name
+          PY
+      - name: Build convenience installer
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, zipfile
+          root=pathlib.Path('dist')
+          root.mkdir(exist_ok=True)
+          target=root/('vault-version-control-'+os.environ['RELEASE_TAG']+'.zip')
+          with zipfile.ZipFile(target,'x',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
+              for name in ['main.js','manifest.json','styles.css']:
+                  archive.write(name,'vault-version-control/'+name)
+          with zipfile.ZipFile(target) as archive:
+              assert archive.testzip() is None
+              assert len(archive.namelist())==3
+          PY
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" main.js manifest.json styles.css "dist/vault-version-control-$RELEASE_TAG.zip" --title "Vault Version Control $RELEASE_TAG" --notes-file "docs/RELEASE_NOTES_$RELEASE_TAG.md" --verify-tag
