@@ -30,7 +30,7 @@ Once listed in the Obsidian Community Plugins directory, install it through **Se
 
 Before directory acceptance, install manually:
 
-1. Open [GitHub Releases](https://github.com/czmatwhu/vault-version-control-develop/releases).
+1. Open [GitHub Releases](https://github.com/czmatwhu/vault-version-control/releases).
 2. Download the individual runtime files **main.js**, **manifest.json**, and **styles.css**, or use the optional convenience installation ZIP.
 3. Place all three files inside your vault at **.obsidian/plugins/vault-version-control/**.
 4. Reload Obsidian, open **Settings → Community plugins**, and enable **Vault Version Control**.
