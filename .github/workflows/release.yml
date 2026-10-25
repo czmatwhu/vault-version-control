@@ -34,6 +34,14 @@ jobs:
               }
               for name, digest in expected.items():
                   assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest, name
+          if tag=='0.1.42':
+              expected={
+                'main.js':'ae32a3549ea585feff660f250fa8045bd246bea10663d0050113fc4f2d7017fb',
+                'manifest.json':'ea20b2ce287335429925fe57f31435b3219ddfb75a7a72ecc240408827f5f4c9',
+                'styles.css':'e0fdfe4dbf9bff2d5898040cad1803888e3c903e8490c691824b2edde3c3df0c',
+              }
+              for name, digest in expected.items():
+                  assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest, name
           PY
       - name: Build convenience installer
         env:

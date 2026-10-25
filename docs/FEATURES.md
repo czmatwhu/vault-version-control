@@ -71,4 +71,4 @@ At the bottom, **Support Development** displays an optional link when the plugin
 
 ---
 
-*Documentation for Vault Version Control 0.1.41; October 2026.*
+*Documentation for Vault Version Control 0.1.42; October 2026.*
