@@ -1,0 +1,12 @@
+{
+  "id": "vault-version-control",
+  "name": "Vault Version Control",
+  "version": "0.1.41",
+  "minAppVersion": "1.7.2",
+  "description": "Manage local Git versions, file history, branches, restores, and text diffs inside an Obsidian vault.",
+  "author": "Chen Zemao",
+  "fundingUrl": {
+    "Buy me a coffee (PayPal)": "https://paypal.me/ZEMAOCHEN"
+  },
+  "isDesktopOnly": true
+}

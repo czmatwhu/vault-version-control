@@ -1,0 +1,2097 @@
+.vvc-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-secondary);
+}
+
+.vvc-graph-details,
+.vvc-file-name {
+  min-width: 0;
+}
+
+.vvc-state-title,
+.vvc-history-title,
+.vvc-popover-heading,
+.vvc-settings-status-title {
+  font-weight: var(--font-semibold);
+}
+
+.vvc-state-copy,
+.vvc-history-meta,
+.vvc-history-scope,
+.vvc-popover-path,
+.vvc-settings-status-copy,
+.vvc-diff-paths {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-view-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+
+.vvc-status-message {
+  min-height: 22px;
+  padding: 2px 10px 6px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-icon-button,
+.vvc-link-button,
+.vvc-file-name {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.vvc-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  color: var(--text-muted);
+}
+
+.vvc-icon-button:hover,
+.vvc-link-button:hover,
+.vvc-file-name:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.vvc-state-panel {
+  padding: 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+
+.vvc-state-title {
+  margin-bottom: 6px;
+}
+
+/* Keep first-time Git setup compact and consistent with Obsidian typography. */
+.vvc-setup-panel {
+  padding: 20px;
+}
+
+.vvc-setup-panel .vvc-state-title {
+  margin-bottom: 8px;
+  color: var(--text-normal);
+  font-size: 18px;
+  font-weight: var(--font-semibold);
+  line-height: 1.35;
+}
+
+.vvc-setup-panel .vvc-state-copy {
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+}
+
+.vvc-setup-panel .vvc-initialize-actions {
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.vvc-setup-panel .vvc-initialize-actions > .vvc-button {
+  display: flex;
+  box-sizing: border-box;
+  border-color: var(--background-modifier-border);
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: var(--font-ui-small);
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+}
+
+/* Keep Git error panels calm and align their primary/secondary actions. */
+.vvc-git-error-panel .vvc-state-title {
+  margin-bottom: 8px;
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.vvc-git-error-panel .vvc-state-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: min(100%, 310px);
+}
+
+.vvc-git-error-panel .vvc-state-actions > button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 12px;
+  font-size: var(--font-ui-small);
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+}
+
+.vvc-state-copy + .vvc-state-copy {
+  margin-top: 5px;
+}
+
+.vvc-button {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--button-radius);
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+}
+
+.vvc-button:hover:not(:disabled) {
+  background: var(--interactive-hover);
+}
+
+.vvc-button-primary {
+  border-color: transparent;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.vvc-button-primary:hover:not(:disabled) {
+  background: var(--interactive-accent-hover);
+}
+
+.vvc-button:disabled,
+.vvc-link-button:disabled,
+.vvc-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.vvc-wide-button {
+  width: 100%;
+}
+
+.vvc-current-branch {
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  min-width: 0;
+}
+
+.vvc-current-branch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vvc-remote-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.vvc-remote-status .vvc-small-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal);
+  letter-spacing: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.vvc-remote-status .vvc-title-action {
+  flex: 0 0 auto;
+}
+
+.vvc-remote-auth-help {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 0 10px 6px;
+}
+
+.vvc-remote-auth-help .vvc-inline-error {
+  margin-top: 0;
+}
+
+.vvc-remote-auth-help:empty {
+  display: none;
+}
+
+.vvc-current-branch-info {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.vvc-current-branch-info .vvc-small-label {
+  flex: 0 0 auto;
+}
+
+.vvc-current-branch-info .vvc-branch-label {
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal);
+  letter-spacing: normal;
+}
+
+.vvc-current-more {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  border-radius: var(--radius-s);
+}
+
+.vvc-current-more svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vvc-small-label,
+.vvc-section-title {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.05em;
+}
+
+.vvc-current-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 3px;
+}
+
+.vvc-current-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  line-height: 1.35;
+}
+
+.vvc-history-title {
+  font-size: var(--font-ui-small);
+}
+
+.vvc-current-badge {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.vvc-section,
+.vvc-change-section,
+.vvc-history-section {
+  margin-top: 12px;
+}
+
+.vvc-change-section {
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+}
+
+.vvc-field-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+}
+
+.vvc-commit-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.vvc-commit-heading .vvc-field-label {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.vvc-commit-button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 3px 10px;
+}
+
+.vvc-commit-input,
+.vvc-text-input,
+.vvc-branch-select {
+  width: 100%;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--input-radius);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.vvc-commit-input,
+.vvc-text-input {
+  padding: 7px 8px;
+}
+
+.vvc-commit-input {
+  min-height: 58px;
+  margin-bottom: 0;
+  resize: vertical;
+}
+
+.vvc-section-header,
+.vvc-history-header,
+.vvc-graph-top,
+.vvc-history-actions,
+.vvc-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vvc-link-button {
+  padding: 3px 5px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.vvc-history-section {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+}
+
+.vvc-history-toggle-header {
+  min-height: 38px;
+  padding: 4px 8px;
+}
+
+.vvc-history-toggle {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 4px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-normal);
+}
+
+.vvc-history-toggle:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-history-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.vvc-history-chevron svg {
+  width: 15px;
+  height: 15px;
+}
+
+.vvc-history-section .vvc-switch-row,
+.vvc-history-section .vvc-graph {
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.vvc-history-section .vvc-graph {
+  margin-bottom: 8px;
+}
+
+.vvc-file-list {
+  width: max-content;
+  min-width: 100%;
+  margin-top: 4px;
+}
+
+.vvc-file-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 2px 3px 2px 6px;
+  border-radius: var(--radius-s);
+}
+
+.vvc-file-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-file-controls {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+  background: var(--background-secondary);
+}
+
+.vvc-file-row:hover .vvc-file-controls {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-change-section .vvc-file-controls {
+  background: var(--background-primary);
+}
+
+.vvc-change-section .vvc-file-row:hover .vvc-file-controls {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-file-status {
+  flex: 0 0 14px;
+  width: 14px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: var(--font-semibold);
+  text-align: center;
+}
+
+.vvc-file-name {
+  display: flex;
+  flex: 1 0 max-content;
+  min-width: max-content;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+  padding: 4px 3px;
+  color: var(--text-normal);
+  text-align: left;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.vvc-stage-button {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+}
+
+.vvc-empty {
+  padding: 12px 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+}
+
+.vvc-empty-compact {
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.vvc-compare-button {
+  margin-top: 12px;
+}
+
+.vvc-divider {
+  height: 1px;
+  margin: 14px 0;
+  background: var(--background-modifier-border);
+}
+
+.vvc-switch-row {
+  display: flex;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.vvc-branch-select {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 4px 6px;
+}
+
+.vvc-graph {
+  margin-top: 8px;
+}
+
+.vvc-graph-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 7px;
+  min-height: 48px;
+  padding: 5px 3px;
+  border-radius: var(--radius-s);
+}
+
+.vvc-graph-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-graph-lanes {
+  position: relative;
+  min-width: 34px;
+  align-self: stretch;
+}
+
+.vvc-lane-line {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.vvc-lane-vertical {
+  width: 0;
+  border-left: 1px solid var(--text-faint);
+}
+
+.vvc-lane-horizontal {
+  height: 0;
+  border-top: 1px solid var(--text-faint);
+}
+
+.vvc-lane-parent {
+  border-color: var(--text-muted);
+}
+
+.vvc-lane-aggregate {
+  position: absolute;
+  z-index: 3;
+  top: 29px;
+  min-width: 12px;
+  padding: 0 2px;
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 10px;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.vvc-lane-node {
+  position: absolute;
+  z-index: 2;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--background-primary);
+  border-radius: 50%;
+  background: var(--text-muted);
+  box-shadow: 0 0 0 1px var(--text-faint);
+  transform: translate(-50%, -50%);
+}
+
+.vvc-graph-row:hover .vvc-lane-node {
+  background: var(--text-normal);
+}
+
+.vvc-lane-node.is-ref-tip {
+  background: var(--text-normal);
+}
+
+.vvc-lane-node.is-current {
+  background: var(--interactive-accent);
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.vvc-graph-top {
+  align-items: flex-start;
+}
+
+.vvc-history-subject {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vvc-history-meta {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.vvc-graph-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+/* A compact hover action within the existing title row; never adds row height. */
+.vvc-view-commit-button {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  padding: 4px;
+  border-radius: var(--radius-s);
+}
+
+.vvc-view-commit-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vvc-view-commit-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+
+.vvc-view-commit-message {
+  box-sizing: border-box;
+  max-height: min(45vh, 420px);
+  margin: 12px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.vvc-edit-commit-message {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.vvc-start-button {
+  flex: 0 0 auto;
+}
+
+.vvc-start-button:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .vvc-start-button {
+    /* Keep actions Tab-focusable while visually hidden. */
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .vvc-graph-row:hover .vvc-start-button,
+  .vvc-start-button:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.vvc-file-history-popover {
+  position: fixed;
+  z-index: var(--layer-popover, 1000);
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+}
+
+.vvc-popover-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 10px 7px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.vvc-popover-heading {
+  font-size: var(--font-ui-medium);
+  line-height: 1.25;
+}
+
+.vvc-popover-path {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vvc-popover-history {
+  padding: 3px 6px 5px;
+}
+
+.vvc-file-history-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  min-height: 46px;
+  padding: 6px 6px 6px 2px;
+  border-radius: var(--radius-s);
+  outline: none;
+}
+
+.vvc-file-history-entry:not(:last-child) {
+  border-bottom: 1px solid var(--background-modifier-border);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.vvc-file-history-entry:hover,
+.vvc-file-history-entry:focus-within {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-file-history-timeline {
+  position: relative;
+  min-height: 34px;
+}
+
+.vvc-file-history-dot {
+  position: absolute;
+  top: 7px;
+  left: 5px;
+  z-index: 1;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--text-faint);
+  border-radius: 50%;
+  background: var(--background-primary);
+  opacity: 0.8;
+}
+
+.vvc-file-history-entry:not(:last-child) .vvc-file-history-timeline::after {
+  content: "";
+  position: absolute;
+  top: 13px;
+  bottom: -13px;
+  left: 7px;
+  width: 1px;
+  background: var(--text-faint);
+  opacity: 0.18;
+}
+
+.vvc-file-history-entry:hover .vvc-file-history-dot,
+.vvc-file-history-entry:focus-within .vvc-file-history-dot {
+  border-color: var(--text-muted);
+  opacity: 1;
+}
+
+.vvc-file-history-content {
+  min-width: 0;
+  align-self: center;
+  padding-right: 4px;
+}
+
+.vvc-file-history-entry .vvc-history-subject {
+  padding-right: 4px;
+  line-height: 1.35;
+}
+
+.vvc-file-history-entry .vvc-history-meta {
+  margin-top: 1px;
+  overflow: hidden;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vvc-history-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vvc-file-history-entry:hover .vvc-history-actions,
+.vvc-file-history-entry:focus-within .vvc-history-actions {
+  max-height: 32px;
+  margin-top: 5px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.vvc-file-history-entry .vvc-history-view-button,
+.vvc-file-history-entry .vvc-restore-button {
+  min-height: 26px;
+  padding: 3px 7px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.vvc-file-history-entry .vvc-history-view-button:hover,
+.vvc-file-history-entry .vvc-restore-button:hover {
+  border-color: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
+}
+
+
+.vvc-history-preview-use-button {
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.vvc-history-preview-use-button:hover {
+  border-color: var(--background-modifier-border-hover);
+  background: var(--background-modifier-hover);
+}
+
+.vvc-history-preview-view .view-header-title.vvc-history-preview-title-readonly {
+  cursor: default;
+}
+
+.vvc-history-preview-file {
+  display: none !important;
+}
+
+.vvc-modal-title {
+  margin-top: 0;
+}
+
+.vvc-modal-copy {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.vvc-modal-actions {
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+.vvc-github-create-actions {
+  flex-wrap: wrap;
+}
+
+.vvc-github-cli-command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary-alt);
+}
+
+.vvc-github-cli-command-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-github-cli-copy {
+  flex: 0 0 auto;
+  min-width: 76px;
+}
+
+.vvc-inline-error {
+  margin-top: 7px;
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  white-space: pre-wrap;
+}
+
+.vvc-ignore-count {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-ignore-file-list {
+  max-height: min(330px, 42vh);
+  overflow-y: auto;
+  margin-top: 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.vvc-ignore-file-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.vvc-ignore-file-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-ignore-file-row input {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.vvc-ignore-file-path {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-ui-small);
+}
+
+.vvc-ignore-confirm-files {
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary-alt);
+}
+
+.vvc-ignore-confirm-name {
+  overflow-wrap: anywhere;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+}
+
+.vvc-settings-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 0;
+}
+
+.vvc-settings-version {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal);
+  white-space: nowrap;
+}
+
+.vvc-settings-status {
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
+.vvc-settings-status-copy {
+  margin-top: 4px;
+}
+
+.vvc-state-actions,
+.vvc-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.vvc-command-code {
+  display: block;
+  margin-top: 10px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary-alt);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  white-space: nowrap;
+}
+
+.vvc-settings-link {
+  margin-top: 10px;
+}
+
+.vvc-error-details {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-error-summary {
+  cursor: pointer;
+}
+
+.vvc-error-raw {
+  max-height: 180px;
+  margin: 7px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.vvc-history-decorations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.vvc-history-decoration {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 5px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vvc-history-decoration.is-current {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+
+/* Main-editor side-by-side diff view */
+.view-content.vvc-diff-view {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-primary);
+}
+
+.view-content.vvc-diff-view {
+  position: relative;
+}
+
+.view-content.vvc-diff-view.is-comparing {
+  position: relative;
+}
+
+.vvc-diff-progress-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--background-primary) 92%, transparent);
+}
+
+.vvc-diff-progress-panel {
+  width: min(420px, 100%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 10px;
+  align-items: center;
+  padding: 16px 18px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+}
+
+.vvc-diff-progress-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--background-modifier-border);
+  border-top-color: var(--interactive-accent);
+  border-radius: 50%;
+  animation: vvc-diff-progress-spin 0.85s linear infinite;
+}
+
+.vvc-diff-progress-copy {
+  min-width: 0;
+}
+
+.vvc-diff-progress-message {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+}
+
+.vvc-diff-progress-detail,
+.vvc-diff-progress-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-diff-progress-detail {
+  margin-top: 2px;
+}
+
+.vvc-diff-progress-bar {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 6px;
+}
+
+.vvc-diff-progress-meta {
+  grid-column: 1 / -1;
+  text-align: right;
+}
+
+@keyframes vvc-diff-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vvc-diff-progress-spinner {
+    animation-duration: 1.8s;
+  }
+}
+
+.vvc-diff-native-header {
+  position: relative;
+}
+
+.vvc-diff-header-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: min(62%, 980px);
+  min-width: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.vvc-diff-header-file {
+  min-width: 0;
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.vvc-diff-header-file:first-child {
+  justify-content: flex-end;
+}
+
+.vvc-diff-header-label {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+}
+
+.vvc-diff-header-file-name {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vvc-diff-header-arrow {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-diff-wrap-native-action {
+  display: inline-flex !important;
+  align-items: center;
+  width: auto !important;
+  min-width: max-content;
+  gap: 4px;
+  padding-inline: 8px !important;
+}
+
+.vvc-diff-wrap-native-action.is-active {
+  color: var(--text-accent);
+}
+
+.vvc-diff-wrap-native-action.is-hidden {
+  display: none !important;
+}
+
+.vvc-diff-wrap-action-label {
+  font-size: var(--font-ui-smaller);
+  line-height: 1;
+}
+
+.vvc-diff-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.vvc-diff-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--background-primary);
+  font-family: var(--vvc-diff-font-family, var(--font-text, sans-serif));
+  font-size: var(--vvc-diff-font-size, var(--font-text-size, 16px));
+  font-weight: var(--vvc-diff-font-weight, 400);
+  line-height: var(--vvc-diff-line-height, var(--line-height-normal, 1.5));
+  letter-spacing: var(--vvc-diff-letter-spacing, normal);
+  scrollbar-gutter: stable;
+}
+
+/* Offscreen Diff rows reserve scrollbar space without mounting row DOM. */
+.vvc-diff-virtual-spacer {
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Restored workspaces show an explicit, non-running Diff state. */
+.view-content.vvc-diff-view.is-restored .vvc-diff-body,
+.view-content.vvc-diff-view.is-identical .vvc-diff-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.vvc-diff-restored-state,
+.vvc-diff-identical-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 420px);
+  text-align: center;
+}
+
+.vvc-diff-restored-icon {
+  color: var(--text-muted);
+  line-height: 0;
+}
+
+.vvc-diff-identical-state .vvc-diff-restored-icon {
+  color: var(--interactive-accent);
+}
+
+.view-content.vvc-diff-view.is-identical .vvc-diff-overview {
+  display: none;
+}
+
+.vvc-diff-restored-title {
+  margin: 0;
+  color: var(--text-normal);
+  font-size: 16px;
+  font-weight: var(--font-semibold);
+  line-height: 1.4;
+}
+
+.vvc-diff-restored-description {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vvc-diff-restored-state .mod-cta {
+  margin-top: 4px;
+}
+
+.vvc-diff-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 45%, transparent);
+}
+
+.vvc-diff-view.is-gridless .vvc-diff-row {
+  border-bottom-color: transparent;
+}
+
+.vvc-diff-cell {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+/* Keep the pane split visible even when horizontal grid lines are disabled. */
+.vvc-diff-cell-left {
+  border-right: 1px solid var(--background-modifier-border);
+}
+
+/* The line-number gutter remains visually distinct in gridless mode. */
+.vvc-diff-line-number {
+  padding: 2px 7px 2px 4px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  font-weight: 400;
+  letter-spacing: normal;
+  border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+  color: var(--text-faint);
+  background: var(--background-secondary-alt);
+  text-align: right;
+  user-select: none;
+}
+
+.vvc-diff-code {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding: 2px 8px;
+  color: var(--text-normal);
+  tab-size: 4;
+}
+
+.vvc-diff-code-content {
+  min-width: 0;
+  transform: translateX(0);
+  transform-origin: left top;
+}
+
+.vvc-diff-view.is-wrap .vvc-diff-code-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.vvc-diff-view.is-nowrap .vvc-diff-code-content {
+  width: max-content;
+  min-width: 100%;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+
+
+.vvc-diff-view.is-nowrap .vvc-diff-code-content.is-hscroll-active {
+  will-change: transform;
+}
+
+/* Slightly stronger than the previous release while keeping text contrast intact. */
+.vvc-diff-row.is-removed .vvc-diff-cell-left,
+.vvc-diff-row.is-changed .vvc-diff-cell-left {
+  background: rgba(var(--color-red-rgb), 0.14);
+}
+
+.vvc-diff-row.is-added .vvc-diff-cell-right,
+.vvc-diff-row.is-changed .vvc-diff-cell-right {
+  background: rgba(var(--color-green-rgb), 0.14);
+}
+
+.vvc-diff-row.is-removed .vvc-diff-cell-right,
+.vvc-diff-row.is-added .vvc-diff-cell-left {
+  background: var(--background-secondary-alt);
+}
+
+.vvc-diff-inline-change {
+  border-radius: 2px;
+}
+
+.vvc-diff-row.is-changed .vvc-diff-cell-left .vvc-diff-inline-change {
+  background: rgba(var(--color-red-rgb), 0.30);
+}
+
+.vvc-diff-row.is-changed .vvc-diff-cell-right .vvc-diff-inline-change {
+  background: rgba(var(--color-green-rgb), 0.30);
+}
+
+.vvc-diff-separator,
+.vvc-diff-truncated,
+.vvc-diff-identical {
+  padding: 10px 12px;
+  color: var(--text-muted);
+  background: var(--background-secondary-alt);
+  text-align: center;
+}
+
+.vvc-diff-truncated .vvc-button {
+  margin: 3px 4px;
+}
+
+.vvc-diff-separator {
+  border-top: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+}
+
+.vvc-diff-view.is-gridless .vvc-diff-separator {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+}
+
+/* Compact, clickable difference overview. This is deliberately a ruler, not a full minimap. */
+.vvc-diff-overview {
+  position: relative;
+  flex: 0 0 16px;
+  min-width: 16px;
+  border-left: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary-alt);
+  overflow: hidden;
+}
+
+.vvc-diff-overview-viewport {
+  position: absolute;
+  z-index: 1;
+  inset-inline: 0;
+  min-height: 3px;
+  border: 1px solid var(--text-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.vvc-diff-jump-hint {
+  position: absolute;
+  z-index: 10;
+  inset-block-start: 10px;
+  inset-inline-end: 32px;
+  border-radius: var(--radius-s);
+  padding: 6px 10px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  pointer-events: none;
+}
+
+.vvc-diff-overview.is-empty {
+  opacity: 0.45;
+}
+
+.vvc-diff-overview-marker {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  min-width: 0;
+  width: auto;
+  height: 4px;
+  min-height: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 1px;
+  box-shadow: none;
+  transform: translateY(-50%);
+  opacity: 0.78;
+  cursor: pointer;
+}
+
+.vvc-diff-overview-marker.is-removed {
+  background: rgba(var(--color-red-rgb), 0.72);
+}
+
+.vvc-diff-overview-marker.is-added {
+  background: rgba(var(--color-green-rgb), 0.72);
+}
+
+.vvc-diff-overview-marker.is-changed {
+  background: linear-gradient(90deg, rgba(var(--color-red-rgb), 0.78) 0 50%, rgba(var(--color-green-rgb), 0.78) 50% 100%);
+}
+
+.vvc-diff-overview-marker.is-active,
+.vvc-diff-overview-marker:hover,
+.vvc-diff-overview-marker:focus-visible {
+  height: 6px;
+  min-height: 6px;
+  opacity: 1;
+  outline: none;
+}
+
+.vvc-diff-view.is-narrow .vvc-diff-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.vvc-diff-view.is-narrow .vvc-diff-cell-left {
+  border-right: 0;
+}
+
+.vvc-diff-view.is-narrow .vvc-diff-row.is-equal .vvc-diff-cell-right,
+.vvc-diff-view.is-narrow .vvc-diff-row.is-removed .vvc-diff-cell-right,
+.vvc-diff-view.is-narrow .vvc-diff-row.is-added .vvc-diff-cell-left {
+  display: none;
+}
+
+.vvc-diff-view.is-narrow .vvc-diff-row.is-changed .vvc-diff-cell-left {
+  border-bottom: 1px dashed var(--background-modifier-border);
+}
+
+.vvc-diff-view.is-narrow.is-gridless .vvc-diff-row.is-changed .vvc-diff-cell-left {
+  border-bottom-color: color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+}
+
+@media (max-width: 760px) {
+  .vvc-diff-header-center {
+    width: calc(100% - 180px);
+    gap: 4px;
+  }
+
+  .vvc-diff-header-label,
+  .vvc-diff-wrap-action-label {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .vvc-diff-header-center {
+    display: none;
+  }
+}
+
+
+.vvc-file-history-entry:hover .vvc-file-history-dot,
+.vvc-file-history-entry:focus-within .vvc-file-history-dot {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-settings-section {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.vvc-settings-section-title {
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+}
+
+.vvc-settings-section-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.45;
+}
+
+.vvc-identity-options {
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+
+.vvc-identity-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  cursor: pointer;
+}
+
+.vvc-identity-option + .vvc-identity-option,
+.vvc-identity-fields {
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.vvc-identity-option:hover,
+.vvc-identity-option.is-selected {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-identity-radio {
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+}
+
+.vvc-identity-option-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.vvc-identity-option-title {
+  color: var(--text-normal);
+  font-weight: var(--font-medium);
+}
+
+.vvc-identity-option-copy,
+.vvc-identity-resolved {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.4;
+}
+
+.vvc-identity-resolved {
+  color: var(--text-normal);
+}
+
+.vvc-identity-fields {
+  padding: 2px 12px;
+  background: var(--background-secondary);
+}
+
+.vvc-identity-fields[hidden] {
+  display: none;
+}
+
+.vvc-identity-fields .setting-item {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* File-history version comparison */
+.vvc-popover-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vvc-history-compare-button {
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.2;
+}
+
+.vvc-history-compare-button:hover,
+.vvc-history-compare-button.is-active {
+  border-color: var(--background-modifier-border);
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.vvc-history-compare-hint {
+  margin: 3px 4px 4px;
+  padding: 5px 6px;
+  border-radius: var(--radius-s);
+  background: var(--background-secondary-alt);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.35;
+}
+
+.vvc-file-history-entry.is-compare-selectable {
+  cursor: pointer;
+}
+
+.vvc-file-history-entry.is-compare-selectable .vvc-history-subject {
+  padding-right: 34px;
+}
+
+.vvc-file-history-entry.is-selected-a,
+.vvc-file-history-entry.is-selected-b {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-history-selection-badge {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.vvc-history-selection-badge:empty {
+  opacity: 0.35;
+}
+
+.vvc-file-history-entry.is-selected-a .vvc-history-selection-badge,
+.vvc-file-history-entry.is-selected-b .vvc-history-selection-badge {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  opacity: 1;
+}
+
+.vvc-working-copy-entry .vvc-file-history-dot {
+  width: 7px;
+  height: 7px;
+  top: 6px;
+  left: 4px;
+  border-color: var(--text-muted);
+}
+
+/* Version-aware Diff header */
+.vvc-diff-header-file-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.vvc-diff-header-file:first-child .vvc-diff-header-file-text {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.vvc-diff-header-version {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-family: var(--font-monospace);
+  font-size: calc(var(--font-ui-smaller) * 0.88);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Vault History: keep branch topology readable without adding another status row. */
+.vvc-branch-origin-hint {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vvc-history-decoration.is-root {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+.vvc-lane-node.is-root:not(.is-current):not(.is-ref-tip) {
+  background: var(--background-primary);
+}
+
+/* Vault History focus model: source context | focused branch | other context.
+   Branch refs are buttons for keyboard accessibility, but they must keep the
+   same compact visual footprint as non-interactive history decorations. */
+.vvc-history-decoration.vvc-branch-focus-chip {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 1px 5px;
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--background-modifier-border-hover);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  box-shadow: none;
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-smaller);
+  font-style: normal;
+  font-weight: var(--font-medium, 500);
+  line-height: 1.35;
+  letter-spacing: normal;
+  text-align: center;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Ordinary branch: secondary structural information. Keep the badge compact,
+   but make the ref name clearly distinguishable from muted relation/meta text. */
+.vvc-history-decoration.vvc-branch-focus-chip:hover:not(.is-focus),
+.vvc-history-decoration.vvc-branch-focus-chip:active:not(.is-focus) {
+  border-color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  box-shadow: none;
+}
+
+/* Checked-out branch / HEAD: same readable neutral fill, plus accent outline. */
+.vvc-history-decoration.vvc-branch-focus-chip.is-current:not(.is-focus) {
+  border-color: var(--interactive-accent);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-weight: var(--font-medium, 500);
+}
+
+/* Focus branch: strongest state. Solid theme accent + text-on-accent keeps
+   the label readable in both light and dark themes without hard-coded color. */
+.vvc-history-decoration.vvc-branch-focus-chip.is-focus {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-weight: var(--font-semibold, 600);
+  box-shadow: none;
+}
+
+.vvc-history-decoration.vvc-branch-focus-chip.is-focus::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.95;
+}
+
+.vvc-history-decoration.vvc-branch-focus-chip.is-focus:hover,
+.vvc-history-decoration.vvc-branch-focus-chip.is-focus:active {
+  border-color: var(--interactive-accent-hover);
+  background: var(--interactive-accent-hover);
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+
+/* Keep keyboard focus visible without changing layout dimensions. */
+.vvc-history-decoration.vvc-branch-focus-chip:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.vvc-history-decoration.vvc-branch-focus-chip.is-focus:focus-visible {
+  outline-color: var(--text-normal);
+}
+
+.vvc-lane-node.is-focus:not(.is-current) {
+  box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+/* 0.1.27: unified section-title language and compact title-row actions. */
+.vvc-panel-title,
+.vvc-history-title {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  letter-spacing: normal;
+  line-height: 1.35;
+}
+
+.vvc-commit-heading {
+  min-height: 30px;
+}
+
+.vvc-commit-heading .vvc-field-label.vvc-panel-title {
+  margin-bottom: 0;
+}
+
+.vvc-title-action {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 4px 5px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal, 400);
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.vvc-title-action:hover:not(:disabled),
+.vvc-title-action:active:not(:disabled) {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  box-shadow: none;
+}
+
+.vvc-title-action:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.vvc-title-action:disabled {
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 1;
+  cursor: default;
+}
+
+/* Commit stays the primary title-row action, but priority is expressed by
+   color/weight instead of a larger solid button. */
+.vvc-commit-action {
+  margin-right: 9px;
+}
+
+.vvc-commit-action:not(:disabled) {
+  color: var(--interactive-accent);
+  font-weight: var(--font-semibold);
+}
+
+.vvc-commit-action:hover:not(:disabled),
+.vvc-commit-action:active:not(:disabled) {
+  color: var(--interactive-accent);
+}
+
+/* Changes / Staged changes use the same title grammar as Vault History. */
+.vvc-section-toggle {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.vvc-section-toggle:hover {
+  background: var(--background-modifier-hover);
+}
+
+.vvc-section-toggle:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.vvc-section-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.vvc-section-chevron svg {
+  width: 15px;
+  height: 15px;
+}
+
+.vvc-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium, 500);
+  line-height: 1;
+}
+
+.vvc-change-section {
+  padding: 4px 8px 7px;
+}
+
+.vvc-change-section.is-collapsed {
+  padding-bottom: 4px;
+}
+
+.vvc-change-section.is-collapsed .vvc-change-content {
+  display: none;
+}
+
+.vvc-change-section .vvc-file-list {
+  margin-top: 2px;
+}
+
+.vvc-change-section .vvc-empty-compact {
+  padding: 5px 4px 3px;
+}
+
+/* Compact, optional import details reuse standard Obsidian typography. */
+.vvc-import-summary {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+}
+
+.vvc-import-summary .vvc-modal-copy {
+  margin: 2px 0;
+}
+
+.vvc-import-file-list {
+  max-height: 170px;
+  overflow: auto;
+  margin-bottom: 8px;
+}
+
+.vvc-import-file-list .vvc-command-code {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.vvc-initialize-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.vvc-import-status {
+  margin-top: 7px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.vvc-import-status.is-error {
+  color: var(--text-error);
+}
