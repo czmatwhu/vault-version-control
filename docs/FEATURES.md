@@ -49,7 +49,7 @@ Automatic cloud sync, general conflict merging/rebasing and force push are outsi
 
 ## 7. Exclude files from Git tracking
 
-**Ignore files…** adds selected file paths to Git ignore rules. Adding an ignore entry does not retroactively remove already published versions of that file from Git history.
+**Ignore from Git** in the file explorer and **Ignore files or folders…** in Version Control support individual files and whole Vault folders. A folder rule excludes its contents recursively. Ordinary Ignore actions run without a confirmation; selections covering 100 or more tracked files require one confirmation. The plugin stages only the new ignore rules and the tracked-file removals, without staging unrelated existing `.gitignore` worktree edits. Local files are always kept. Multiple Ignore actions need no intermediate commits, and the latest pending Ignore can be safely undone from the result notice. Staged deletions with a local file still present are labeled **Stopped tracking** in Changes, including after restarting the plugin. Existing Git history is not rewritten. **File History** displays commits that removed a file from Git as removal events, without offering View or Use this version as though a file blob still existed. A removal event is not a file version and is not selectable for ordinary content Compare; it instead offers read-only **View Git change** showing the actual Git deletion patch. Compare accepts the **Current local file** (including an ignored/untracked file, if still on disk) and historical versions containing real file content. When the current untracked file is still on disk and its newest exact-path Git history event is a removal, the Compare timeline visually merges that removal into the current-file row as a single compact metadata line (`Saved on disk · Removed from Git in <commit> · <date>`); **View Git change** remains accessible without changing the A/B selection. All other events remain separate. Diff labels saved-on-disk content versus committed content and excludes unsaved editor changes. Saved legacy Diff tabs referencing removal events fail safely instead of treating absence as an empty file. Restoration of an older real version preserves existing ignore rules and will not re-track a file. The restore operation never physically deletes a local file just because a selected historical commit lacks that file.
 
 ## 8. Settings and optional developer support
 
@@ -71,4 +71,4 @@ At the bottom, **Support Development** displays an optional link when the plugin
 
 ---
 
-*Documentation for Vault Version Control 0.1.42; October 2026.*
+*Documentation for Vault Version Control 0.1.49; October 2026.*

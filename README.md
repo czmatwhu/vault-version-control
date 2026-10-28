@@ -13,7 +13,7 @@ Vault Version Control is a desktop plugin for tracking changes, inspecting earli
 - **Compare text files:** Read-only side-by-side diffs, inline highlights, line numbers, wrapping, a difference overview, theme-matched typography, and large-file rendering.
 - **Explore vault history:** Branch-aware commit graph, full commit messages, **Start Here** to branch from an older commit, and protected branch switching.
 - **Use remote Git:** Preview and initialize from remote history, connect a destination remote, fetch, and push the current branch without forcing.
-- **Manage ignored files:** Add selected files to Git ignore rules.
+- **Manage ignored files and folders:** Ignore files or folders without deleting local content. Stage only new ignore rules, undo the latest Ignore before committing, and compare current saved files with earlier committed versions.
 - **Support development:** Optional funding entry in plugin Settings and Obsidian's native Donate menu.
 
 See the **[feature overview and user guide](docs/FEATURES.md)** for workflows, precautions, and limitations.

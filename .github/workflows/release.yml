@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   publish:
@@ -42,7 +44,22 @@ jobs:
               }
               for name, digest in expected.items():
                   assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest, name
+          if tag=='0.1.49':
+              expected={
+                'main.js':'41ecd5cda3cd4bd1cc8b6dfbb1be534650e7711c0e12fbe10daabcf1e3e53763',
+                'manifest.json':'bd5a275b6f8be2fb6d78c45de5323ce76b935fa12eb3dc8b635b4b12fb327b31',
+                'styles.css':'b0213ac302d19ecbaceb79feb16ea1d1faa04d0213ab86994915ea51983e23e8',
+              }
+              for name, digest in expected.items():
+                  assert hashlib.sha256((root/name).read_bytes()).hexdigest()==digest, name
           PY
+      - name: Attest release runtime files
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
       - name: Build convenience installer
         env:
           RELEASE_TAG: ${{ github.ref_name }}

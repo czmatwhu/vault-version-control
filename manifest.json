@@ -1,7 +1,7 @@
 {
   "id": "vault-version-control",
   "name": "Vault Version Control",
-  "version": "0.1.42",
+  "version": "0.1.49",
   "minAppVersion": "1.7.2",
   "description": "Manage Git versions, file history, branches, restores, and text diffs in your vault.",
   "author": "Chen Zemao",

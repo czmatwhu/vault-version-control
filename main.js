@@ -526,18 +526,17 @@ function remoteTrackingStatus(remote) {
         return prefix + `${behind} new remote ${behind === 1 ? "commit" : "commits"}`;
     return prefix + local + " · " + incoming;
 }
-// A root-anchored .gitignore literal file pattern. Escape Git's pattern
-// metacharacters and spaces so paths cannot become directory-wide wildcards.
-function exactGitIgnoreRule(filePath) {
+// Use a root-anchored literal rule; directory rules end in /.
+function exactGitIgnoreRule(filePath, directory = false) {
     if (!filePath || filePath.startsWith("/") || filePath.includes("\\") ||
         /[\x00-\x1f\x7f]/.test(filePath) ||
         filePath.split("/").some((segment) => !segment || segment === "." || segment === "..")) {
-        throw new Error("This filename cannot be safely represented by a Git ignore rule.");
+        throw new Error("This path cannot be safely represented by a Git ignore rule.");
     }
-    return "/" + filePath.replace(/([\\*?\[\]!# ])/g, "\\$1");
+    return "/" + filePath.replace(/([\\*?\[\]!# ])/g, "\\$1") + (directory ? "/" : "");
 }
-function workingTreeDiffSource(filePath) {
-    return { kind: "working-tree", filePath };
+function workingTreeDiffSource(filePath, tracked) {
+    return { kind: "working-tree", filePath, tracked };
 }
 function revisionDiffSource(filePath, entry) {
     return {
@@ -547,13 +546,20 @@ function revisionDiffSource(filePath, entry) {
         hash: entry.hash,
         shortHash: entry.shortHash,
         timestamp: entry.timestamp,
+        absentAtCommit: entry.contentAvailable === false,
     };
 }
 function diffSourceLabel(source) {
-    return source.kind === "working-tree" ? "Working copy" : source.shortHash;
+    return source.kind === "working-tree" ? "Current local file" :
+        source.absentAtCommit ? `${source.shortHash} (removed)` : source.shortHash;
 }
 function diffSourceDetail(source) {
-    return source.kind === "working-tree" ? "Working copy" : `${source.shortHash} · ${formatDate(source.timestamp)}`;
+    if (source.kind === "working-tree") {
+        const status = source.tracked === false ? " · Not tracked by Git" :
+            source.tracked === true ? " · Tracked by Git" : "";
+        return `Current local file · Saved on disk${status}`;
+    }
+    return `Historical version · ${source.shortHash} · ${formatDate(source.timestamp)}${source.absentAtCommit ? " · Not in this commit" : ""}`;
 }
 const MAX_VISIBLE_GRAPH_LANES = 3;
 const SOURCE_GRAPH_LANE = 0;
@@ -915,6 +921,8 @@ class GitService {
         this.remoteImportInProgress = false;
         this.githubCreationInProgress = false;
         this.ignoreInProgress = false;
+        this.ignoreUndoStack = [];
+        this.ignoreUndoSerial = 0;
         this.plugin = plugin;
     }
     get vaultPath() {
@@ -2454,40 +2462,247 @@ class GitService {
             throw new Error("Initialize the local Git repository first.");
         this.assertImportComplete();
         if (!filePaths.length || filePaths.length > 256)
-            throw new Error("Select 1–256 files.");
+            throw new Error("Select 1–256 files or folders.");
         const unique = [...new Set(filePaths)];
         const result = [];
         for (const filePath of unique) {
             exactGitIgnoreRule(filePath);
             const segments = filePath.split("/");
-            if (segments[0].toLowerCase() === ".git" || filePath === ".gitignore") {
+            if (segments.some((segment) => segment.toLowerCase() === ".git") || filePath === ".gitignore") {
                 throw new Error(`Protected Vault or Git configuration cannot be ignored: ${filePath}`);
             }
             let current = this.vaultPath;
+            let directory = false;
             for (let i = 0; i < segments.length; i++) {
                 current = path.join(current, segments[i]);
                 const info = fs.lstatSync(current);
-                if (info.isSymbolicLink() || (i === segments.length - 1 ? !info.isFile() : !info.isDirectory())) {
-                    throw new Error(`Only regular files inside the Vault can be ignored: ${filePath}`);
+                if (info.isSymbolicLink() ||
+                    (i === segments.length - 1 ? !info.isFile() && !info.isDirectory() : !info.isDirectory())) {
+                    throw new Error(`Only regular files or directories inside the Vault can be ignored: ${filePath}`);
                 }
-                if (i < segments.length - 1 && fs.existsSync(path.join(current, ".git"))) {
-                    throw new Error(`This file belongs to a nested Git repository; manage its ignore rules inside that repository: ${filePath}`);
+                if (info.isDirectory() && fs.existsSync(path.join(current, ".git"))) {
+                    throw new Error(`This path belongs to a nested Git repository; manage its ignore rules inside that repository: ${filePath}`);
                 }
+                if (i === segments.length - 1)
+                    directory = info.isDirectory();
             }
-            const literal = `:(literal)${filePath}`;
+            // A trailing slash selects descendants, not similarly named siblings.
+            const literal = `:(literal)${filePath}${directory ? "/" : ""}`;
             const index = (await this.run(["ls-files", "--stage", "-z", "--", literal])).stdout
                 .split("\0").filter(Boolean);
-            if (index.length > 1 || index.some((entry) => !/^100(?:644|755) [0-9a-f]{40,64} 0\t/.test(entry) ||
-                entry.slice(entry.indexOf("\t") + 1) !== filePath)) {
-                throw new Error(`File has an unsupported or conflicted Git index entry: ${filePath}`);
+            if ((!directory && index.length > 1) || index.some((entry) => {
+                const indexPath = entry.slice(entry.indexOf("\t") + 1);
+                return !/^100(?:644|755) [0-9a-f]{40,64} 0\t/.test(entry) ||
+                    (directory ? !indexPath.startsWith(filePath + "/") : indexPath !== filePath);
+            })) {
+                throw new Error(`Path has an unsupported or conflicted Git index entry: ${filePath}`);
+            }
+            if (directory) {
+                // A directory in the worktree can still be a file in the Git index.
+                const rootIndex = (await this.run(["ls-files", "--stage", "-z", "--", `:(literal)${filePath}`])).stdout
+                    .split("\0").filter(Boolean);
+                if (rootIndex.some((entry) => entry.slice(entry.indexOf("\t") + 1) === filePath)) {
+                    throw new Error(`Directory conflicts with a tracked file in the Git index: ${filePath}`);
+                }
             }
             const staged = (await this.run(["diff", "--cached", "--name-only", "-z", "--", literal])).stdout;
             if (staged)
                 throw new Error(`Resolve staged changes for ${filePath} before excluding it from Git.`);
-            const ignored = (await this.run(["check-ignore", "--no-index", "-q", "--", filePath], [0, 1])).code === 0;
-            result.push({ path: filePath, tracked: index.length === 1, ignored });
+            const ignored = (await this.run(["check-ignore", "--no-index", "-q", "--",
+                directory ? filePath + "/" : filePath], [0, 1])).code === 0;
+            result.push({ path: filePath, tracked: index.length > 0, trackedFiles: index.length, ignored, directory });
         }
-        return result;
+        // Selected parent directories subsume selected descendants.
+        return result.filter((entry) => !result.some((parent) => parent.directory && entry.path.startsWith(parent.path + "/")));
+    }
+    // Capture only the target Git index entries; never reset unrelated staged work.
+    async ignoreIndexEntries(files) {
+        const map = new Map();
+        if (!files.length)
+            return map;
+        const paths = files.map((file) => `:(literal)${file.path}${file.directory ? "/" : ""}`);
+        const records = (await this.run(["ls-files", "--stage", "-z", "--", ...paths])).stdout.split("\0").filter(Boolean);
+        for (const entry of records) {
+            const match = /^(100644|100755) ([0-9a-f]{40,64}) 0\t(.+)$/s.exec(entry);
+            if (!match || !files.some((file) => file.directory
+                ? match[3].startsWith(file.path + "/") : match[3] === file.path)) {
+                throw new Error("Selected paths have unexpected Git index entries; retry without changing the index.");
+            }
+            if (map.has(match[3]))
+                throw new Error("Selected paths have duplicated Git index entries.");
+            map.set(match[3], { mode: match[1], hash: match[2] });
+        }
+        return map;
+    }
+    sameIgnoreIndex(expected, actual, allowRemoved) {
+        for (const [name, value] of actual) {
+            const original = expected.get(name);
+            if (!original || original.mode !== value.mode || original.hash !== value.hash)
+                return false;
+        }
+        return allowRemoved || actual.size === expected.size;
+    }
+    async ignoreHead() {
+        return await this.hasHead() ? (await this.run(["rev-parse", "HEAD"])).stdout.trim() : "";
+    }
+    async ignoreStageEntry() {
+        const raw = (await this.run(["ls-files", "--stage", "-z", "--", ":(literal).gitignore"])).stdout;
+        if (!raw)
+            return null;
+        const match = /^(100644|100755) ([0-9a-f]{40,64}) 0\t\.gitignore\0$/.exec(raw);
+        if (!match)
+            throw new Error("The staged .gitignore has an unsupported or conflicted entry.");
+        return { mode: match[1], hash: match[2] };
+    }
+    sameIgnoreEntry(left, right) {
+        return left?.mode === right?.mode && left?.hash === right?.hash && (left === null) === (right === null);
+    }
+    async ignoreStageText(entry) {
+        if (!entry)
+            return "";
+        const bytes = (await this.runBuffer(["cat-file", "blob", entry.hash])).stdout;
+        if (bytes.includes(0) || !Buffer.from(bytes.toString("utf8"), "utf8").equals(bytes)) {
+            throw new Error("Staged .gitignore is not valid UTF-8 text.");
+        }
+        return bytes.toString("utf8");
+    }
+    // Construct an index blob from the STAGED content, never the worktree.
+    // This cannot accidentally stage pre-existing user edits.
+    async ignoreWriteStage(before, text) {
+        if (!this.sameIgnoreEntry(before, await this.ignoreStageEntry())) {
+            throw new Error("Staged .gitignore changed during Ignore; retry.");
+        }
+        const tmp = fs.mkdtempSync(path.join(require("os").tmpdir(), "vvc-ignore-"));
+        const file = path.join(tmp, "rules");
+        try {
+            fs.writeFileSync(file, text, { flag: "wx", mode: 0o600 });
+            const hash = (await this.run(["hash-object", "-w", "--", file])).stdout.trim();
+            if (!/^[0-9a-f]{40,64}$/.test(hash))
+                throw new Error("Invalid hash for staged ignore rules.");
+            if (!this.sameIgnoreEntry(before, await this.ignoreStageEntry())) {
+                throw new Error("Staged .gitignore changed during Ignore; retry.");
+            }
+            const after = { mode: before?.mode || "100644", hash };
+            try {
+                await this.run(["update-index", "--add", "--cacheinfo", after.mode, after.hash, ".gitignore"]);
+                if (!this.sameIgnoreEntry(after, await this.ignoreStageEntry())) {
+                    throw new Error("Could not verify staged ignore rules.");
+                }
+            }
+            catch (error) {
+                // Git can change the index before an execution error is reported.
+                // Recover our exact blob only when it is still the current entry.
+                try {
+                    const current = await this.ignoreStageEntry();
+                    if (this.sameIgnoreEntry(current, after)) {
+                        await this.ignoreRestoreStage(after, before);
+                    }
+                    else if (!this.sameIgnoreEntry(current, before)) {
+                        throw new Error("Staged .gitignore was concurrently changed.");
+                    }
+                }
+                catch {
+                    throw new Error("Staging the ignore rule failed and the index could not be safely restored. Check .gitignore before retrying.");
+                }
+                throw error;
+            }
+            return after;
+        }
+        finally {
+            try {
+                fs.unlinkSync(file);
+            }
+            catch { }
+            try {
+                fs.rmdirSync(tmp);
+            }
+            catch { }
+        }
+    }
+    async ignoreRestoreStage(after, before) {
+        if (!this.sameIgnoreEntry(after, await this.ignoreStageEntry())) {
+            throw new Error("Staged .gitignore changed; refusing to overwrite it.");
+        }
+        if (before) {
+            await this.run(["update-index", "--add", "--cacheinfo", before.mode, before.hash, ".gitignore"]);
+        }
+        else {
+            await this.run(["update-index", "--force-remove", "--", ".gitignore"]);
+        }
+        if (!this.sameIgnoreEntry(before, await this.ignoreStageEntry())) {
+            throw new Error("Staged .gitignore could not be restored.");
+        }
+    }
+    ignoreRestoreWorktree(before, after) {
+        const dest = path.join(this.vaultPath, ".gitignore");
+        const stat = fs.lstatSync(dest);
+        if (!stat.isFile() || stat.isSymbolicLink() || !fs.readFileSync(dest).equals(after)) {
+            throw new Error(".gitignore has been changed by another operation.");
+        }
+        if (before === null)
+            fs.unlinkSync(dest);
+        else
+            fs.writeFileSync(dest, before);
+    }
+    async ignoreRestoreTargets(files, snapshot) {
+        const now = await this.ignoreIndexEntries(files);
+        if (!this.sameIgnoreIndex(snapshot, now, true)) {
+            throw new Error("Target Git index changed outside this Ignore operation.");
+        }
+        for (const [name, original] of snapshot) {
+            if (now.has(name))
+                continue;
+            await this.run(["update-index", "--add", "--cacheinfo", original.mode, original.hash, name]);
+        }
+        if (!this.sameIgnoreIndex(snapshot, await this.ignoreIndexEntries(files), false)) {
+            throw new Error("Could not verify restored target Git index.");
+        }
+    }
+    async undoLastIgnore(id) {
+        if (this.ignoreInProgress || this.isNetworkBusy())
+            throw new Error("Another Git operation is in progress.");
+        const undo = this.ignoreUndoStack[this.ignoreUndoStack.length - 1];
+        if (!undo || undo.id !== id)
+            throw new Error("Only the most recent Ignore operation can be undone.");
+        this.ignoreInProgress = true;
+        try {
+            if ((await this.ignoreHead()) !== undo.head)
+                throw new Error("Git HEAD changed; Undo is no longer safe.");
+            if (!this.sameIgnoreEntry(undo.stageAfter, await this.ignoreStageEntry())) {
+                throw new Error("Staged .gitignore changed since Ignore; Undo cannot overwrite it.");
+            }
+            const dest = path.join(this.vaultPath, ".gitignore");
+            const stat = fs.lstatSync(dest);
+            if (!stat.isFile() || stat.isSymbolicLink() ||
+                !fs.readFileSync(dest).equals(undo.workAfter)) {
+                throw new Error(".gitignore changed since Ignore; Undo cannot overwrite it.");
+            }
+            if ((await this.ignoreIndexEntries(undo.files)).size !== 0) {
+                throw new Error("Target Git index changed since Ignore; Undo cannot overwrite it.");
+            }
+            await this.ignoreRestoreTargets(undo.files, undo.targets);
+            await this.ignoreRestoreStage(undo.stageAfter, undo.stageBefore);
+            this.ignoreRestoreWorktree(undo.workBefore, undo.workAfter);
+            this.ignoreUndoStack.pop();
+        }
+        finally {
+            this.ignoreInProgress = false;
+        }
+    }
+    async verifyManagedIgnoreRules() {
+        if (!this.ignoreUndoStack.length)
+            return;
+        const head = await this.ignoreHead();
+        const staged = (await this.ignoreStageText(await this.ignoreStageEntry())).split(/\r?\n/);
+        for (const undo of this.ignoreUndoStack) {
+            if (undo.head !== head)
+                continue;
+            for (const rule of undo.rules) {
+                if (!staged.includes(rule)) {
+                    throw new Error("An Ignore from Git rule has been removed from staging. Review .gitignore before committing.");
+                }
+            }
+        }
     }
     async ignoreFiles(filePaths) {
         if (this.ignoreInProgress || this.isNetworkBusy())
@@ -2497,8 +2712,13 @@ class GitService {
             const inspected = await this.inspectIgnoreFiles(filePaths);
             const actionable = inspected.filter((entry) => entry.tracked || !entry.ignored);
             if (!actionable.length)
-                return { changed: 0, untracked: 0, alreadyIgnored: inspected.length };
+                return { changed: 0, untracked: 0, alreadyIgnored: inspected.length, trackedFiles: 0 };
             const tracked = actionable.filter((entry) => entry.tracked);
+            const originalIndex = await this.ignoreIndexEntries(tracked);
+            if (originalIndex.size !== tracked.reduce((sum, item) => sum + item.trackedFiles, 0)) {
+                throw new Error("The selected Git index changed during inspection. Retry.");
+            }
+            const head = await this.ignoreHead();
             const ignorePath = path.join(this.vaultPath, ".gitignore");
             let before = null;
             try {
@@ -2515,75 +2735,113 @@ class GitService {
                 if (error?.code !== "ENOENT")
                     throw error;
             }
-            // A tracked-file removal should be committed together with the ignore
-            // rule. Never silently stage unrelated pre-existing .gitignore edits.
-            if (tracked.length && before !== null) {
-                const dirty = (await this.run(["status", "--porcelain=v1", "-z", "--", ".gitignore"])).stdout;
-                if (dirty)
-                    throw new Error("Resolve existing .gitignore changes before stopping tracking. Only that file needs to be clean.");
+            const stageBefore = await this.ignoreStageEntry();
+            if (!stageBefore && await this.hasHead()) {
+                const inHead = (await this.run(["ls-tree", "-z", "HEAD", "--", ".gitignore"])).stdout;
+                if (inHead)
+                    throw new Error(".gitignore is staged for deletion. Resolve its staged deletion before Ignore.");
             }
+            const stageOriginal = await this.ignoreStageText(stageBefore);
             const original = before === null ? "" : before.toString("utf8");
-            const newline = original.includes("\r\n") ? "\r\n" : "\n";
-            const existingRules = new Set(original.split(/\r?\n/));
-            const rules = actionable.map((entry) => exactGitIgnoreRule(entry.path))
-                .filter((rule) => !existingRules.has(rule));
-            const separator = original && !original.endsWith("\n") ? newline : "";
-            const appended = rules.length ? separator + rules.join(newline) + newline : "";
-            let changedIgnore = false;
-            let stagedIgnore = false;
+            const rules = [...new Set(actionable.map((entry) => exactGitIgnoreRule(entry.path, entry.directory)))];
+            const append = (text) => {
+                const newline = text.includes("\r\n") ? "\r\n" : "\n";
+                const existing = new Set(text.split(/\r?\n/));
+                const missing = rules.filter((rule) => !existing.has(rule));
+                return text + (missing.length
+                    ? (text && !text.endsWith("\n") ? newline : "") + missing.join(newline) + newline : "");
+            };
+            const workAfter = Buffer.from(append(original), "utf8");
+            const stageText = append(stageOriginal);
+            let workChanged = false;
+            let stageChanged = false;
+            let stageAfter = null;
+            let rmStarted = false;
             try {
-                if (appended) {
+                if (!workAfter.equals(before ?? Buffer.alloc(0))) {
                     if (before === null) {
-                        fs.writeFileSync(ignorePath, appended, { flag: "wx", encoding: "utf8" });
+                        fs.writeFileSync(ignorePath, workAfter, { flag: "wx" });
                     }
                     else {
                         if (!fs.readFileSync(ignorePath).equals(before)) {
-                            throw new Error(".gitignore changed while this operation was being prepared. Retry.");
+                            throw new Error(".gitignore changed while Ignore was being prepared. Retry.");
                         }
-                        fs.appendFileSync(ignorePath, appended, "utf8");
+                        fs.appendFileSync(ignorePath, workAfter.subarray(before.length));
                     }
-                    changedIgnore = true;
+                    workChanged = true;
                 }
                 for (const entry of actionable) {
-                    const applied = await this.run(["check-ignore", "--no-index", "-q", "--", entry.path], [0, 1]);
-                    if (applied.code !== 0)
-                        throw new Error(`An existing ignore rule overrides the selection: ${entry.path}. No files were untracked.`);
-                }
-                if (tracked.length) {
-                    if (changedIgnore) {
-                        await this.run(["add", "--", ".gitignore"]);
-                        stagedIgnore = true;
+                    const applied = await this.run(["check-ignore", "--no-index", "-q", "--",
+                        entry.directory ? entry.path + "/" : entry.path], [0, 1]);
+                    if (applied.code !== 0) {
+                        throw new Error("An existing ignore rule overrides the selection: " + entry.path + ". No files were untracked.");
                     }
-                    await this.run(["rm", "--cached", "-q", "--", ...tracked.map((entry) => `:(literal)${entry.path}`)]);
+                }
+                if (stageText !== stageOriginal) {
+                    stageAfter = await this.ignoreWriteStage(stageBefore, stageText);
+                    stageChanged = true;
+                }
+                else
+                    stageAfter = stageBefore;
+                if (tracked.length) {
+                    if (!this.sameIgnoreIndex(originalIndex, await this.ignoreIndexEntries(tracked), false)) {
+                        throw new Error("Selected Git index entries changed during Ignore. Retry.");
+                    }
+                    rmStarted = true;
+                    await this.run(["rm", "--cached", "-r", "-q", "--",
+                        ...tracked.map((entry) => ":(literal)" + entry.path + (entry.directory ? "/" : ""))]);
+                    if ((await this.ignoreIndexEntries(tracked)).size) {
+                        throw new Error("Not all selected Git index entries were removed.");
+                    }
                 }
             }
             catch (error) {
-                // Recover the rule and its staged entry only if they still have exactly
-                // the bytes we appended. Never overwrite a concurrent user edit.
-                if (changedIgnore) {
+                let targetOK = true;
+                let stageOK = !stageChanged;
+                let workOK = !workChanged;
+                try {
+                    if (rmStarted)
+                        await this.ignoreRestoreTargets(tracked, originalIndex);
+                }
+                catch {
+                    targetOK = false;
+                }
+                if (targetOK) {
                     try {
-                        const expected = Buffer.from(original + appended, "utf8");
-                        if (fs.readFileSync(ignorePath).equals(expected)) {
-                            if (stagedIgnore) {
-                                if (await this.hasHead())
-                                    await this.run(["reset", "-q", "HEAD", "--", ".gitignore"]);
-                                else
-                                    await this.run(["rm", "--cached", "-q", "--ignore-unmatch", "--", ".gitignore"]);
-                            }
-                            if (before === null)
-                                fs.unlinkSync(ignorePath);
-                            else
-                                fs.writeFileSync(ignorePath, before);
+                        if (stageChanged) {
+                            await this.ignoreRestoreStage(stageAfter, stageBefore);
+                            stageOK = true;
                         }
                     }
-                    catch { /* Preserve potentially concurrent changes; report failure. */ }
+                    catch {
+                        stageOK = false;
+                    }
+                    if (stageOK && workChanged) {
+                        try {
+                            this.ignoreRestoreWorktree(before, workAfter);
+                            workOK = true;
+                        }
+                        catch {
+                            workOK = false;
+                        }
+                    }
+                }
+                const cause = error instanceof Error ? error.message : String(error);
+                if (!targetOK || !stageOK || !workOK) {
+                    throw new Error("Ignore failed: " + cause +
+                        ". Partial changes may remain; inspect the target Git index and .gitignore before retrying.");
                 }
                 throw error;
             }
+            const undoId = ++this.ignoreUndoSerial;
+            this.ignoreUndoStack.push({
+                id: undoId, head, files: tracked, targets: originalIndex,
+                workBefore: before, workAfter, stageBefore, stageAfter, rules,
+            });
             return {
-                changed: actionable.length,
-                untracked: tracked.length,
+                changed: actionable.length, untracked: tracked.length,
                 alreadyIgnored: inspected.length - actionable.length,
+                trackedFiles: originalIndex.size, undoId,
             };
         }
         finally {
@@ -2610,8 +2868,10 @@ class GitService {
         }
     }
     async commit(message) {
+        await this.verifyManagedIgnoreRules();
         await this.applyConfiguredIdentity();
         await this.run(["commit", "-m", message]);
+        this.ignoreUndoStack = [];
     }
     async commitMessage(hash) {
         if (!/^[0-9a-f]{40,64}$/i.test(hash))
@@ -2822,6 +3082,26 @@ class GitService {
         }
         return entries;
     }
+    async historicalRemovalPatch(entry) {
+        if (!/^[0-9a-f]{40,64}$/.test(entry.hash))
+            throw new Error("Invalid historical commit.");
+        if (await this.historicalFileBlob(entry)) {
+            throw new Error("This commit contains a file version rather than a removal event.");
+        }
+        checkedVaultFilePath(this.vaultPath, entry.pathAtCommit);
+        const output = await this.runBuffer([
+            "show", "--format=", "--no-color", "--no-ext-diff", "--no-renames", "--diff-filter=D",
+            entry.hash, "--", `:(literal)${entry.pathAtCommit}`,
+        ]);
+        if (output.stdout.length > 1024 * 1024) {
+            throw new Error("This historical patch is too large to display in the plugin.");
+        }
+        return output.stdout.toString("utf8");
+    }
+    async isFileTracked(filePath) {
+        checkedVaultFilePath(this.vaultPath, filePath);
+        return Boolean((await this.run(["ls-files", "--stage", "-z", "--", `:(literal)${filePath}`])).stdout);
+    }
     async fileHistory(filePath, limit = 80) {
         if (!this.hasLocalRepository() || !(await this.hasHead()))
             return [];
@@ -2852,7 +3132,31 @@ class GitService {
             history.push({ hash, shortHash, timestamp, decorations, subject,
                 pathAtCommit: name.slice(1) || filePath });
         }
+        // Git logs include the commit which removed the path from the tree.
+        // Classify events using actual Git trees, with bounded parallel reads.
+        let cursor = 0;
+        await Promise.all(Array.from({ length: Math.min(8, history.length) }, async () => {
+            while (cursor < history.length) {
+                const index = cursor++;
+                history[index].contentAvailable = Boolean(await this.historicalFileBlob(history[index]));
+            }
+        }));
         return history;
+    }
+    async historicalFileBlob(entry) {
+        if (!/^[0-9a-f]{40,64}$/.test(entry.hash))
+            throw new Error("Invalid historical commit identifier.");
+        const tree = (await this.run(["ls-tree", "--full-tree", "-z", entry.hash, "--",
+            `:(literal)${entry.pathAtCommit}`])).stdout;
+        if (!tree)
+            return null;
+        const records = tree.split("\0").filter(Boolean);
+        const match = records.length === 1 &&
+            /^(100644|100755) blob ([0-9a-f]{40,64})\t([^\0]+)$/.exec(records[0]);
+        if (!match || match[3] !== entry.pathAtCommit) {
+            throw new Error("Unsupported or ambiguous historical file type.");
+        }
+        return { mode: match[1], hash: match[2] };
     }
     ensureHistoryPreviewIgnored() {
         const gitDir = this.gitDirPath();
@@ -2875,9 +3179,10 @@ class GitService {
         fs.appendFileSync(excludePath, `${prefix}# Vault Version Control temporary history previews\n${rule}\n`, "utf8");
     }
     async readFileVersion(entry) {
-        const spec = `${entry.hash}:${entry.pathAtCommit}`;
-        const blob = await this.runBuffer(["show", spec]);
-        return blob.stdout;
+        const file = await this.historicalFileBlob(entry);
+        if (!file)
+            throw new Error("This commit does not contain this file. Choose an earlier version.");
+        return (await this.runBuffer(["cat-file", "blob", file.hash])).stdout;
     }
     async assertSupportedWorkingAttributes(files, cwd, workTree, cached = false) {
         const batches = [];
@@ -2916,17 +3221,14 @@ class GitService {
         if (!/^[0-9a-f]{40,64}$/i.test(entry.hash))
             throw new Error("Invalid commit identifier.");
         await this.run(["cat-file", "-e", `${entry.hash}^{commit}`]);
-        const tree = (await this.run(["ls-tree", "--full-tree", "-z", entry.hash, "--", `:(literal)${entry.pathAtCommit}`])).stdout;
-        const records = tree.split("\0").filter(Boolean);
-        let content = null;
-        let historicalMode = 0o644;
-        if (records.length) {
-            const match = records.length === 1 && /^(100644|100755) blob ([0-9a-f]{40,64})\t([^\0]+)$/.exec(records[0]);
-            if (!match || match[3] !== entry.pathAtCommit)
-                throw new Error("Unsupported or ambiguous historical file type.");
-            content = (await this.runBuffer(["cat-file", "blob", match[2]])).stdout;
-            historicalMode = match[1] === "100755" ? 0o755 : 0o644;
+        const historical = await this.historicalFileBlob(entry);
+        // "Use this version" must never interpret missing history as a
+        // request to physically delete a local file.
+        if (!historical) {
+            throw new Error("This commit does not contain this file. Choose an earlier version. The local file was not changed.");
         }
+        const content = (await this.runBuffer(["cat-file", "blob", historical.hash])).stdout;
+        const historicalMode = historical.mode === "100755" ? 0o755 : 0o644;
         await this.assertSupportedWorkingAttributes([filePath]);
         const needsUnstage = await this.fileHasChanges(filePath);
         const metadata = (await this.run(["rev-parse", "--absolute-git-dir"])).stdout.trim();
@@ -2935,11 +3237,6 @@ class GitService {
         if (!unchanged(before))
             throw new Error("File changed since confirmation. Review and retry.");
         assertNoUnsavedMarkdownViews(this.plugin.app, this.vaultPath, new Set([filePath]));
-        if (!before.exists && content === null) {
-            if (needsUnstage)
-                await this.unstageFile(filePath);
-            return;
-        }
         fs.mkdirSync(path.dirname(absolute), { recursive: true });
         checkedVaultFilePath(this.vaultPath, filePath);
         const metadataStat = fs.lstatSync(metadata);
@@ -2955,11 +3252,9 @@ class GitService {
         let installed = null;
         let ownsTemp = false;
         try {
-            if (content !== null) {
-                fs.writeFileSync(tempPath, content, { flag: "wx", mode: historicalMode });
-                ownsTemp = true;
-                fs.chmodSync(tempPath, historicalMode);
-            }
+            fs.writeFileSync(tempPath, content, { flag: "wx", mode: historicalMode });
+            ownsTemp = true;
+            fs.chmodSync(tempPath, historicalMode);
             if (!unchanged(before))
                 throw new Error("File changed before installation. Review and retry.");
             if (before.exists) {
@@ -2970,21 +3265,16 @@ class GitService {
                     throw new Error("File changed while the restore backup was being made.");
                 }
             }
-            const published = content === null
-                ? { exists: false, sha256: null, dev: null, ino: null, mode: null }
-                : snapshotRegularFile(tempPath);
-            if (content !== null) {
-                // Publish an absent file without clobbering a concurrent creator.
-                if (before.exists)
-                    fs.renameSync(tempPath, absolute);
-                else {
-                    fs.linkSync(tempPath, absolute);
-                    fs.unlinkSync(tempPath);
-                }
-                ownsTemp = false;
+            const published = snapshotRegularFile(tempPath);
+            // Install historical content only. An absent historical file must never
+            // be represented by a filesystem deletion in this restore API.
+            if (before.exists)
+                fs.renameSync(tempPath, absolute);
+            else {
+                fs.linkSync(tempPath, absolute);
+                fs.unlinkSync(tempPath);
             }
-            else
-                fs.unlinkSync(absolute);
+            ownsTemp = false;
             installed = published;
             if (!unchanged(installed))
                 throw new Error("File changed immediately after restore installation.");
@@ -3032,14 +3322,26 @@ class GitService {
     }
     async readDiffSource(source) {
         if (source.kind === "working-tree") {
-            const absolutePath = path.join(this.vaultPath, ...source.filePath.split("/"));
-            if (!fs.existsSync(absolutePath))
-                throw new Error(`File not found: ${source.filePath}`);
+            const absolutePath = checkedVaultFilePath(this.vaultPath, source.filePath);
+            let info;
+            try {
+                info = fs.lstatSync(absolutePath);
+            }
+            catch (error) {
+                if (error?.code === "ENOENT")
+                    throw new Error(`Current local file is no longer on disk: ${source.filePath}`);
+                throw error;
+            }
+            if (!info.isFile() || info.isSymbolicLink()) {
+                throw new Error("Current local comparison source must be a regular file.");
+            }
+            // Compare uses the saved bytes on disk, not unsaved Obsidian editor text.
             return fs.readFileSync(absolutePath);
         }
-        const spec = `${source.hash}:${source.pathAtCommit}`;
-        const blob = await this.runBuffer(["show", spec]);
-        return blob.stdout;
+        if (source.absentAtCommit) {
+            throw new Error("Removed from Git is a history event, not a file version. Compare a committed version with the current local file instead.");
+        }
+        return await this.readFileVersion(source);
     }
     async canAutoRestoreDiff(left, right) {
         const isSmallSource = async (source) => {
@@ -3051,9 +3353,14 @@ class GitService {
                     return false;
                 size = stat.size;
             }
+            else if (source.absentAtCommit) {
+                return false;
+            }
             else {
-                const spec = `${source.hash}:${source.pathAtCommit}`;
-                const result = await this.run(["cat-file", "-s", spec]);
+                const historical = await this.historicalFileBlob(source);
+                if (!historical)
+                    return false;
+                const result = await this.run(["cat-file", "-s", historical.hash]);
                 size = Number(result.stdout.trim());
             }
             if (!Number.isSafeInteger(size) || size < 0 || size > DIFF_AUTO_RESTORE_MAX_BYTES)
@@ -3091,6 +3398,10 @@ class GitService {
         }
     }
     async diffSources(left, right, onProgress) {
+        if ((left.kind === "revision" && left.absentAtCommit) ||
+            (right.kind === "revision" && right.absentAtCommit)) {
+            throw new Error("Removed from Git is a history event, not a file version. Select two available file contents to compare.");
+        }
         onProgress?.({
             step: 1,
             totalSteps: 4,
@@ -3588,29 +3899,33 @@ class ConfirmExcludeFilesModal extends obsidian_1.Modal {
     onOpen() {
         const content = this.contentEl;
         content.replaceChildren();
-        const tracked = this.files.filter((file) => file.tracked).length;
-        htmlEl(content, "h2", "vvc-modal-title", this.batch ? "Exclude files from Git" : "Stop tracking file");
+        const tracked = this.files.reduce((count, file) => count + (file.trackedFiles ?? (file.tracked ? 1 : 0)), 0);
+        const folder = !this.batch && this.files[0]?.directory;
+        htmlEl(content, "h2", "vvc-modal-title", this.batch ? "Exclude files and folders from Git" : folder ? "Stop tracking folder" : "Stop tracking file");
         const list = htmlEl(content, "div", "vvc-ignore-confirm-files");
-        for (const file of this.files.slice(0, 8))
-            htmlEl(list, "div", "vvc-ignore-confirm-name", file.path);
+        for (const file of this.files.slice(0, 8)) {
+            htmlEl(list, "div", "vvc-ignore-confirm-name", file.path + (file.directory ? "/" : ""));
+        }
         if (this.files.length > 8)
-            htmlEl(list, "div", "vvc-modal-copy", `And ${this.files.length - 8} more files.`);
+            htmlEl(list, "div", "vvc-modal-copy", `And ${this.files.length - 8} more items.`);
         htmlEl(content, "p", "vvc-modal-copy", this.batch
-            ? `${tracked} of ${this.files.length} selected files are already tracked. Git will stop tracking them and add ignore rules to .gitignore.`
-            : "Git will stop tracking this file and add it to .gitignore.");
+            ? `${tracked} tracked ${tracked === 1 ? "file" : "files"} within the ${this.files.length} selected items will stop being tracked. Ignore rules will be added to .gitignore.`
+            : folder
+                ? `Git will stop tracking ${tracked} ${tracked === 1 ? "file" : "files"} within this folder and ignore the entire folder.`
+                : "Git will stop tracking this file and add it to .gitignore.");
         htmlEl(content, "p", "vvc-modal-copy", "Local files will be kept. Previous versions remain in Git history. Committing the removal can also remove tracked copies when another device pulls it.");
-        htmlEl(content, "p", "vvc-modal-copy", "No commit or push will be performed.");
+        htmlEl(content, "p", "vvc-modal-copy", "No commit or push will be performed. Only the new ignore rules and tracked-file removals will be staged.");
         const error = htmlEl(content, "div", "vvc-inline-error");
         const actions = htmlEl(content, "div", "vvc-modal-actions");
         buttonEl(actions, "Cancel", "vvc-button").addEventListener("click", () => this.close());
-        const confirm = buttonEl(actions, this.batch ? "Exclude selected files" : "Stop tracking", "vvc-button vvc-button-primary");
+        const confirm = buttonEl(actions, this.batch ? "Exclude selected items" : "Stop tracking", "vvc-button vvc-button-primary");
         confirm.addEventListener("click", async () => {
             confirm.disabled = true;
             try {
                 const result = await this.plugin.git.ignoreFiles(this.files.map((file) => file.path));
                 this.close();
                 this.onDone?.();
-                new obsidian_1.Notice(`${result.changed} ${result.changed === 1 ? "file" : "files"} excluded from Git. Local files were kept.`);
+                this.plugin.showIgnoreResult(result);
                 await this.plugin.refreshVersionControlNow();
             }
             catch (failure) {
@@ -3629,44 +3944,48 @@ class IgnoreFilesModal extends obsidian_1.Modal {
     onOpen() {
         const content = this.contentEl;
         content.replaceChildren();
-        htmlEl(content, "h2", "vvc-modal-title", "Ignore files from Git");
-        htmlEl(content, "p", "vvc-modal-copy", "Search and select Vault files. Local files will not be deleted.");
+        htmlEl(content, "h2", "vvc-modal-title", "Ignore files and folders from Git");
+        htmlEl(content, "p", "vvc-modal-copy", "Search and select Vault files or folders. Selecting a folder includes all its contents. Local files will not be deleted.");
         const search = htmlEl(content, "input", "vvc-text-input");
         search.type = "search";
         search.value = "";
-        search.placeholder = "Search Vault files…";
-        search.setAttribute("aria-label", "Search Vault files");
-        const allFiles = this.plugin.app.vault.getFiles()
-            .map((file) => file.path)
-            .filter((name) => name !== ".gitignore" && !this.plugin.isHistoryPreviewFilePath(name))
-            .sort((a, b) => a.localeCompare(b));
+        search.placeholder = "Search Vault files or folders…";
+        search.setAttribute("aria-label", "Search Vault files or folders");
+        const files = this.plugin.app.vault.getFiles()
+            .map((file) => ({ path: file.path, directory: false }))
+            .filter((entry) => entry.path !== ".gitignore" && !this.plugin.isHistoryPreviewFilePath(entry.path));
+        const folders = (this.plugin.app.vault.getAllLoadedFiles?.() || [])
+            .filter((entry) => entry instanceof obsidian_1.TFolder && entry.path && entry.path !== "/")
+            .map((entry) => ({ path: entry.path, directory: true }));
+        const allPaths = [...files, ...folders].sort((a, b) => a.path.localeCompare(b.path));
         const count = htmlEl(content, "div", "vvc-ignore-count");
         const list = htmlEl(content, "div", "vvc-ignore-file-list");
         const error = htmlEl(content, "div", "vvc-inline-error");
         const actions = htmlEl(content, "div", "vvc-modal-actions");
         buttonEl(actions, "Cancel", "vvc-button").addEventListener("click", () => this.close());
-        const exclude = buttonEl(actions, "Exclude selected files", "vvc-button vvc-button-primary");
+        const exclude = buttonEl(actions, "Exclude selected items", "vvc-button vvc-button-primary");
         const render = () => {
             list.replaceChildren();
             const query = search.value.trim().toLocaleLowerCase();
-            const matching = allFiles.filter((name) => name.toLocaleLowerCase().includes(query));
-            for (const filePath of matching.slice(0, 100)) {
+            const matching = allPaths.filter((entry) => entry.path.toLocaleLowerCase().includes(query));
+            for (const entry of matching.slice(0, 100)) {
+                const filePath = entry.path;
                 const row = htmlEl(list, "label", "vvc-ignore-file-row");
                 const checkbox = htmlEl(row, "input");
                 checkbox.type = "checkbox";
                 checkbox.checked = this.selected.has(filePath);
-                htmlEl(row, "span", "vvc-ignore-file-path", filePath);
+                htmlEl(row, "span", "vvc-ignore-file-path", filePath + (entry.directory ? "/" : ""));
                 checkbox.addEventListener("change", () => {
                     if (checkbox.checked)
                         this.selected.add(filePath);
                     else
                         this.selected.delete(filePath);
-                    count.textContent = `${this.selected.size} files selected · ${matching.length} matching` +
+                    count.textContent = `${this.selected.size} items selected · ${matching.length} matching` +
                         (matching.length > 100 ? " (showing first 100)" : "");
                     exclude.disabled = this.selected.size === 0;
                 });
             }
-            count.textContent = `${this.selected.size} files selected · ${matching.length} matching` +
+            count.textContent = `${this.selected.size} items selected · ${matching.length} matching` +
                 (matching.length > 100 ? " (showing first 100)" : "");
             exclude.disabled = this.selected.size === 0;
         };
@@ -3677,16 +3996,14 @@ class IgnoreFilesModal extends obsidian_1.Modal {
             const paths = [...this.selected];
             try {
                 const inspected = await this.plugin.git.inspectIgnoreFiles(paths);
-                if (inspected.some((file) => file.tracked)) {
+                if (this.plugin.needsIgnoreConfirmation(inspected)) {
                     new ConfirmExcludeFilesModal(this.plugin, inspected, true).open();
                     this.close();
                     return;
                 }
                 const result = await this.plugin.git.ignoreFiles(paths);
                 this.close();
-                new obsidian_1.Notice(result.changed
-                    ? `${result.changed} ${result.changed === 1 ? "file" : "files"} added to .gitignore. Stage the ignore rules when ready to commit.`
-                    : "Selected files are already ignored by Git.");
+                this.plugin.showIgnoreResult(result);
                 await this.plugin.refreshVersionControlNow();
             }
             catch (failure) {
@@ -3995,7 +4312,7 @@ function parseDiffSource(value) {
     if (!value || typeof value !== "object")
         return null;
     if (value.kind === "working-tree" && typeof value.filePath === "string") {
-        return workingTreeDiffSource(value.filePath);
+        return workingTreeDiffSource(value.filePath, typeof value.tracked === "boolean" ? value.tracked : undefined);
     }
     if (value.kind === "revision" &&
         typeof value.filePath === "string" &&
@@ -4008,6 +4325,9 @@ function parseDiffSource(value) {
             hash: value.hash,
             shortHash: typeof value.shortHash === "string" && value.shortHash ? value.shortHash : value.hash.slice(0, 7),
             timestamp: Number(value.timestamp || 0),
+            // Preserve the event classification through Obsidian's view state.
+            // Otherwise a removed commit is incorrectly read as a file blob.
+            absentAtCommit: value.absentAtCommit === true,
         };
     }
     return null;
@@ -4319,6 +4639,8 @@ class DiffView extends obsidian_1.ItemView {
             this.comparisonRunning = false;
             this.comparisonCompleted = false;
             this.stopProgressTimer();
+            // A failed comparison is terminal, not a loading state.
+            this.progressOverlayEl?.remove();
             this.clearProgressRefs();
             this.state.diffText = "";
             const message = error instanceof Error ? error.message : String(error);
@@ -5247,9 +5569,25 @@ class TextFileSuggestModal extends obsidian_1.FuzzySuggestModal {
         this.scheduleResolve();
     }
 }
+class HistoricalRemovalDiffModal extends obsidian_1.Modal {
+    constructor(app, filePath, patch) {
+        super(app);
+        this.filePath = filePath;
+        this.patch = patch;
+    }
+    onOpen() {
+        const content = this.contentEl;
+        content.replaceChildren();
+        htmlEl(content, "h2", "vvc-modal-title", "Git removal change");
+        htmlEl(content, "p", "vvc-modal-copy", "This commit removed the file from the Git tree. This is a history diff, not a comparison with the current local file.");
+        htmlEl(content, "div", "vvc-history-removal-path", this.filePath);
+        htmlEl(content, "pre", "vvc-history-removal-patch", this.patch || "No file-removal patch is available for this commit.");
+    }
+}
 class FileHistoryPopover {
     constructor(plugin) {
         this.currentPath = "";
+        this.currentFileTracked = null;
         this.history = [];
         this.compareMode = false;
         this.compareSelections = [];
@@ -5307,6 +5645,7 @@ class FileHistoryPopover {
         this.rootEl.hidden = true;
         this.pinned = false;
         this.currentPath = "";
+        this.currentFileTracked = null;
         this.history = [];
         this.compareMode = false;
         this.compareSelections = [];
@@ -5323,6 +5662,7 @@ class FileHistoryPopover {
     async show(filePath, position) {
         this.cancelHide();
         this.currentPath = filePath;
+        this.currentFileTracked = null;
         this.history = [];
         this.compareMode = false;
         this.compareSelections = [];
@@ -5335,9 +5675,13 @@ class FileHistoryPopover {
         this.rootEl.hidden = false;
         this.position(position);
         try {
-            const history = await this.plugin.git.fileHistory(filePath);
+            const [history, tracked] = await Promise.all([
+                this.plugin.git.fileHistory(filePath),
+                this.plugin.git.isFileTracked(filePath).catch(() => null),
+            ]);
             if (thisRequest !== this.requestId || this.currentPath !== filePath)
                 return;
+            this.currentFileTracked = tracked;
             this.history = history;
             this.renderHistory();
         }
@@ -5373,18 +5717,31 @@ class FileHistoryPopover {
             htmlEl(this.historyEl, "div", "vvc-empty", "No committed history for this file.");
             return;
         }
+        let mergedRemoval = null;
         if (this.compareMode) {
             const hint = this.compareSelections.length === 0
-                ? "Select the first version (A), then the second version (B)."
-                : "Select the second version (B).";
+                ? "Select two file contents: current local file or committed versions."
+                : "Select another available file content (B).";
             htmlEl(this.historyEl, "div", "vvc-history-compare-hint", hint);
             const currentFile = this.plugin.app.vault.getAbstractFileByPath(this.currentPath);
-            if (currentFile instanceof obsidian_1.TFile && isTextFile(currentFile)) {
-                this.renderWorkingCopyEntry();
+            if (currentFile instanceof obsidian_1.TFile && isTextFile(currentFile) &&
+                this.localFileAvailable(this.currentPath)) {
+                // The latest removal of this exact path is historical metadata for an
+                // existing untracked local file, not another selectable file version.
+                // Older removal events and renamed paths remain separate history rows.
+                const latest = this.history[0];
+                if (this.currentFileTracked === false && latest?.contentAvailable === false &&
+                    latest.pathAtCommit === this.currentPath) {
+                    mergedRemoval = latest;
+                }
+                this.renderWorkingCopyEntry(mergedRemoval);
             }
         }
-        for (const entry of this.history)
+        for (const entry of this.history) {
+            if (entry === mergedRemoval)
+                continue;
             this.renderHistoryEntry(entry);
+        }
     }
     position(position) {
         const width = 320;
@@ -5417,6 +5774,8 @@ class FileHistoryPopover {
         return this.compareSelections.findIndex((candidate) => this.sourceKey(candidate) === key);
     }
     async selectCompareSource(source) {
+        if (source.kind === "revision" && source.absentAtCommit)
+            return;
         const existing = this.selectionIndex(source);
         if (existing >= 0) {
             this.compareSelections.splice(existing, 1);
@@ -5433,8 +5792,26 @@ class FileHistoryPopover {
             ? Number.POSITIVE_INFINITY
             : candidate.timestamp;
         const [left, right] = order(first) <= order(second) ? [first, second] : [second, first];
+        // The comparison reader also checks disk existence immediately before
+        // reading; this preflight avoids opening a stale local comparison tab.
+        if ([left, right].some((item) => item.kind === "working-tree" &&
+            !this.localFileAvailable(item.filePath))) {
+            new obsidian_1.Notice("Current local file is no longer on disk. Select another version.");
+            this.compareSelections = [];
+            this.renderHistory();
+            return;
+        }
         this.close();
         await this.plugin.compareHistorySources(left, right);
+    }
+    localFileAvailable(filePath) {
+        try {
+            const stat = fs.lstatSync(checkedVaultFilePath(this.plugin.git.vaultPath, filePath));
+            return stat.isFile() && !stat.isSymbolicLink();
+        }
+        catch {
+            return false;
+        }
     }
     makeSelectable(row, source) {
         const selectedIndex = this.selectionIndex(source);
@@ -5462,18 +5839,50 @@ class FileHistoryPopover {
         const badge = htmlEl(row, "div", "vvc-history-selection-badge", selectedIndex === 0 ? "A" : selectedIndex === 1 ? "B" : "");
         badge.setAttribute("aria-hidden", "true");
     }
-    renderWorkingCopyEntry() {
-        const source = workingTreeDiffSource(this.currentPath);
+    renderWorkingCopyEntry(removal = null) {
+        const source = workingTreeDiffSource(this.currentPath, this.currentFileTracked ?? undefined);
         const row = htmlEl(this.historyEl, "div", "vvc-file-history-entry vvc-working-copy-entry");
         row.tabIndex = 0;
         const timeline = htmlEl(row, "div", "vvc-file-history-timeline");
         timeline.setAttribute("aria-hidden", "true");
         htmlEl(timeline, "span", "vvc-file-history-dot");
         const content = htmlEl(row, "div", "vvc-file-history-content");
-        htmlEl(content, "div", "vvc-history-subject", "Current working copy");
-        htmlEl(content, "div", "vvc-history-meta", "Current file on disk");
+        htmlEl(content, "div", "vvc-history-subject", "Current local file");
+        const trackStatus = removal
+            ? ` · Removed from Git in ${removal.shortHash} · ${new Date(removal.timestamp * 1000).toLocaleDateString([], { month: "short", day: "numeric" })}`
+            : this.currentFileTracked === false ? " · Not tracked by Git" :
+                this.currentFileTracked === true ? " · Tracked by Git" : "";
+        const meta = htmlEl(content, "div", "vvc-history-meta", `Saved on disk${trackStatus}`);
+        meta.title = removal
+            ? `Saved on disk · Removed from Git in ${removal.shortHash} · ${formatDate(removal.timestamp)}. Comparison uses saved bytes, not unsaved editor changes.`
+            : "Comparison reads saved bytes from disk, not unsaved Obsidian editor changes.";
+        if (removal)
+            this.renderRemovalChangeAction(content, removal, false);
         this.renderSelectionBadge(row, source);
         this.makeSelectable(row, source);
+    }
+    renderRemovalChangeAction(content, entry, closeOnOpen) {
+        const actions = htmlEl(content, "div", "vvc-history-actions");
+        const change = buttonEl(actions, "View Git change", "vvc-link-button vvc-history-view-button");
+        change.addEventListener("keydown", (event) => event.stopPropagation());
+        change.addEventListener("click", async (event) => {
+            event.stopPropagation();
+            if (change.disabled)
+                return;
+            change.disabled = true;
+            try {
+                const patch = await this.plugin.git.historicalRemovalPatch(entry);
+                new HistoricalRemovalDiffModal(this.plugin.app, this.currentPath, patch).open();
+                if (closeOnOpen)
+                    this.close();
+                else
+                    change.disabled = false;
+            }
+            catch (error) {
+                change.disabled = false;
+                new obsidian_1.Notice(error instanceof Error ? error.message : String(error));
+            }
+        });
     }
     renderHistoryEntry(entry) {
         const source = revisionDiffSource(this.currentPath, entry);
@@ -5489,9 +5898,25 @@ class FileHistoryPopover {
         if (entry.decorations)
             metaParts.push(entry.decorations);
         htmlEl(content, "div", "vvc-history-meta", metaParts.filter(Boolean).join(" · "));
+        if (entry.contentAvailable === false) {
+            const eventLabel = htmlEl(content, "div", "vvc-history-event-label", "Removed from Git");
+            eventLabel.title = "No file content in this commit";
+            eventLabel.setAttribute("aria-label", "Removed from Git; no file content in this commit");
+        }
         if (this.compareMode) {
-            this.renderSelectionBadge(row, source);
-            this.makeSelectable(row, source);
+            if (entry.contentAvailable === false) {
+                row.tabIndex = -1;
+                row.setAttribute("aria-label", "Removed from Git: historical event, not a comparison version");
+            }
+            else {
+                this.renderSelectionBadge(row, source);
+                this.makeSelectable(row, source);
+            }
+            return;
+        }
+        // A removal event has its own read-only patch, never file content actions.
+        if (entry.contentAvailable === false) {
+            this.renderRemovalChangeAction(content, entry, true);
             return;
         }
         const actions = htmlEl(content, "div", "vvc-history-actions");
@@ -5558,7 +5983,7 @@ class VersionControlView extends obsidian_1.ItemView {
     showMoreActions(event) {
         const menu = new obsidian_1.Menu();
         menu.addItem((item) => {
-            item.setTitle("Ignore files…").setIcon("file-minus").onClick(() => {
+            item.setTitle("Ignore files or folders…").setIcon("file-minus").onClick(() => {
                 new IgnoreFilesModal(this.plugin).open();
             });
         });
@@ -5929,14 +6354,17 @@ class VersionControlView extends obsidian_1.ItemView {
                 textarea.focus();
                 return;
             }
-            commitButton.disabled = true;
-            try {
+            const finishCommit = async () => {
                 await this.plugin.git.commit(message);
                 this.commitDraft = defaultCommitMessage();
                 this.commitDraftIsAutomatic = true;
                 textarea.value = this.commitDraft;
                 new obsidian_1.Notice("Commit created.");
                 await this.refresh();
+            };
+            commitButton.disabled = true;
+            try {
+                await finishCommit();
             }
             catch (error) {
                 commitButton.disabled = false;
@@ -6023,8 +6451,19 @@ class VersionControlView extends obsidian_1.ItemView {
                 ? `Nested Git repository: commit its internal changes first`
                 : `Stage ${entry.path}`;
         toggle.setAttribute("aria-label", stageLabel);
-        const status = htmlEl(controls, "span", "vvc-file-status", statusLetter(code));
-        status.setAttribute("aria-label", code === "?" || code === "A" ? "Added" : code === "D" ? "Deleted" : code === "R" ? "Renamed" : code === "C" ? "Copied" : code === "U" ? "Unmerged" : "Modified");
+        // Staged deletion plus a still-present worktree file means Git stopped
+        // tracking that path rather than deleting the user's local copy.
+        // Derive this from Git/worktree state so it also survives app restarts.
+        const stoppedTracking = stagedSection && code === "D" &&
+            fs.existsSync(path.join(this.plugin.git.vaultPath, entry.path));
+        const status = htmlEl(controls, "span", "vvc-file-status", stoppedTracking ? "I" : statusLetter(code));
+        status.setAttribute("aria-label", stoppedTracking ? "Stopped tracking; local file kept" :
+            code === "?" || code === "A" ? "Added" : code === "D" ? "Deleted" :
+                code === "R" ? "Renamed" : code === "C" ? "Copied" : code === "U" ? "Unmerged" : "Modified");
+        if (stoppedTracking) {
+            row.classList.add("vvc-stopped-tracking");
+            row.title = "Stopped tracking · local file kept";
+        }
         const name = buttonEl(row, entry.path, "vvc-file-name");
         const pathTitle = entry.originalPath ? `${entry.originalPath} → ${entry.path}` : entry.path;
         if (entry.isGitLink) {
@@ -6586,25 +7025,73 @@ class VaultVersionControlPlugin extends obsidian_1.Plugin {
         this.historyPreviewPaths = new Set();
         this.historyPreviewInfo = new Map();
         this.historyPreviewMaintenanceTimer = null;
+        this.ignoreConfirmationThreshold = 100;
     }
     isHistoryPreviewFilePath(filePath) {
         return this.historyPreviewPaths.has(filePath);
     }
-    async ignoreSingleFileFromGit(filePath) {
+    needsIgnoreConfirmation(items) {
+        return items.reduce((count, entry) => count + entry.trackedFiles, 0) >= this.ignoreConfirmationThreshold;
+    }
+    showIgnoreResult(result) {
+        if (!result.changed)
+            return;
+        const label = `Ignored ${result.changed} ${result.changed === 1 ? "item" : "items"} · Local files kept`;
+        const detail = result.trackedFiles > 0
+            ? `${result.trackedFiles} ${result.trackedFiles === 1 ? "file" : "files"} stopped tracking. Local files kept.`
+            : "Local files kept.";
+        const content = document.createDocumentFragment();
+        const row = htmlEl(content, "div", "vvc-ignore-notice");
+        const message = htmlEl(row, "span", "vvc-ignore-notice-message", label);
+        message.title = detail;
+        let undo = null;
+        if (result.undoId !== undefined) {
+            undo = buttonEl(row, "Undo", "vvc-ignore-notice-undo");
+            undo.title = "Undo this Ignore from Git action";
+            undo.setAttribute("aria-label", "Undo last Ignore from Git action");
+        }
+        // Notice officially accepts a DocumentFragment; do not append a native
+        // button to its internal container (which uses the host's button styling).
+        const notice = new obsidian_1.Notice(content, 8500);
+        if (undo) {
+            undo.addEventListener("click", async (event) => {
+                event.stopPropagation();
+                if (undo.disabled)
+                    return;
+                undo.disabled = true;
+                try {
+                    await this.git.undoLastIgnore(result.undoId);
+                }
+                catch (error) {
+                    undo.disabled = false;
+                    new obsidian_1.Notice(error instanceof Error ? error.message : "Unable to undo Ignore safely.", 8000);
+                    return;
+                }
+                notice.hide();
+                new obsidian_1.Notice("Ignore undone. Local files kept.");
+                try {
+                    await this.refreshVersionControlNow();
+                }
+                catch {
+                    // A refresh error must not be mistaken for an Undo failure.
+                    new obsidian_1.Notice("Ignore was undone, but the Git status view could not refresh.", 8000);
+                }
+            });
+        }
+    }
+    async ignoreSinglePathFromGit(filePath) {
         try {
             const [file] = await this.git.inspectIgnoreFiles([filePath]);
-            if (file.tracked) {
+            if (this.needsIgnoreConfirmation([file])) {
                 new ConfirmExcludeFilesModal(this, [file], false).open();
                 return;
             }
             const result = await this.git.ignoreFiles([filePath]);
-            new obsidian_1.Notice(result.changed
-                ? "File added to .gitignore. Stage the ignore rule when you are ready to commit."
-                : "This file is already ignored by Git.");
+            this.showIgnoreResult(result);
             await this.refreshVersionControlNow();
         }
         catch (error) {
-            new obsidian_1.Notice(error instanceof Error ? error.message : "Unable to ignore file.", 7000);
+            new obsidian_1.Notice(error instanceof Error ? error.message : "Unable to ignore path.", 7000);
         }
     }
     async onload() {
@@ -6667,8 +7154,19 @@ class VaultVersionControlPlugin extends obsidian_1.Plugin {
             event.stopPropagation();
         }, true);
         this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => {
-            if (!(file instanceof obsidian_1.TFile))
+            const isFolder = file instanceof obsidian_1.TFolder;
+            if (!(file instanceof obsidian_1.TFile) && !isFolder)
                 return;
+            if (isFolder) {
+                if (file.path && file.path !== "/" && this.git.hasLocalRepository()) {
+                    menu.addItem((item) => {
+                        item.setTitle("Ignore from Git").setIcon("folder-minus").onClick(() => {
+                            void this.ignoreSinglePathFromGit(file.path);
+                        });
+                    });
+                }
+                return;
+            }
             if (this.historyPreviewPaths.has(file.path)) {
                 const info = this.historyPreviewInfo.get(file.path);
                 if (info) {
@@ -6704,7 +7202,7 @@ class VaultVersionControlPlugin extends obsidian_1.Plugin {
             if (this.git.hasLocalRepository() && file.path !== ".gitignore") {
                 menu.addItem((item) => {
                     item.setTitle("Ignore from Git").setIcon("file-minus").onClick(() => {
-                        void this.ignoreSingleFileFromGit(file.path);
+                        void this.ignoreSinglePathFromGit(file.path);
                     });
                 });
             }
@@ -7446,6 +7944,9 @@ class VaultVersionControlPlugin extends obsidian_1.Plugin {
         }
     }
     async restoreFileFromHistory(filePath, entry) {
+        if (entry.contentAvailable === false) {
+            throw new Error("This commit removed the file from Git; it is not a file version. Local files were not changed.");
+        }
         assertNoUnsavedMarkdownViews(this.app, this.git.vaultPath, new Set([filePath]));
         const expected = this.git.captureWorkingFileSnapshot(filePath);
         const dirty = await this.git.fileHasChanges(filePath);
